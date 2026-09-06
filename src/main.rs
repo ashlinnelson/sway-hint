@@ -1,5 +1,5 @@
 use iced::widget::{column, container, row, scrollable, text, text_input, Column};
-use iced::{color, Font, Length, Size, Theme};
+use iced::{color, Font, Length, Size, Subscription, Task, Theme};
 
 use std::collections::HashMap;
 use std::process::Command;
@@ -29,6 +29,7 @@ struct App {
 #[derive(Debug, Clone)]
 enum Message {
     FilterChanged(String),
+    Close,
 }
 
 impl App {
@@ -40,10 +41,24 @@ impl App {
         }
     }
 
-    fn update(&mut self, message: Message) {
+    fn update(&mut self, message: Message) -> Task<Message> {
         match message {
-            Message::FilterChanged(value) => self.filter = value,
+            Message::FilterChanged(value) => {
+                self.filter = value;
+            }
+            Message::Close => return iced::exit(),
         }
+        Task::none()
+    }
+
+    fn subscription(&self) -> Subscription<Message> {
+        iced::event::listen_with(|event, _status, _window| match event {
+            iced::event::Event::Keyboard(iced::keyboard::Event::KeyPressed {
+                key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+                ..
+            }) => Some(Message::Close),
+            _ => None,
+        })
     }
 
     fn theme(&self) -> Theme {
@@ -201,6 +216,7 @@ fn main() -> iced::Result {
         App::view,
     )
     .theme(App::theme)
+    .subscription(App::subscription)
     .title("Sway Key Bindings")
     .window_size(Size::new(760.0, 640.0))
     .run()
