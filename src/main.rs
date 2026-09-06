@@ -370,6 +370,97 @@ fn display_keys(keys: &str) -> String {
         .join("+")
 }
 
+fn key_to_symbol(key: &str) -> &str {
+    match key {
+        // Modifiers
+        "Super" | "Mod4" => "\u{2318}",
+        "Alt" | "Mod1" => "\u{2325}",
+        "Ctrl" | "Control" => "\u{2303}",
+        "Shift" => "\u{21E7}",
+        "Mod2" | "Mod3" | "Mod5" => "\u{2318}",
+
+        // Editing
+        "Return" | "Enter" => "\u{23CE}",
+        "Escape" | "Escape_LC" => "\u{238B}",
+        "BackSpace" | "BackSpace_LC" => "\u{232B}",
+        "Tab" | "Tab_LC" => "\u{21E5}",
+        "Delete" | "Delete_LC" => "\u{2326}",
+        "Insert" => "\u{2380}",
+
+        // Navigation
+        "Left" => "\u{2190}",
+        "Right" => "\u{2192}",
+        "Up" => "\u{2191}",
+        "Down" => "\u{2193}",
+        "Home" => "\u{2196}",
+        "End" => "\u{2198}",
+        "Page_Up" => "\u{21DE}",
+        "Page_Down" => "\u{21DF}",
+
+        // Lock keys
+        "Caps_Lock" => "\u{21EA}",
+        "Num_Lock" => "\u{2327}",
+        "Scroll_Lock" => "\u{21C7}",
+
+        // Print / Pause / Menu
+        "Print" => "\u{2399}",
+        "Pause" => "\u{23F8}",
+        "Menu" => "\u{2630}",
+
+        // Function keys
+        "F1" => "F1",
+        "F2" => "F2",
+        "F3" => "F3",
+        "F4" => "F4",
+        "F5" => "F5",
+        "F6" => "F6",
+        "F7" => "F7",
+        "F8" => "F8",
+        "F9" => "F9",
+        "F10" => "F10",
+        "F11" => "F11",
+        "F12" => "F12",
+
+        // Space
+        "space" | "Space" => "\u{2423}",
+
+        // Power
+        "XF86PowerOff" => "\u{23FB}",
+        "Power" => "\u{23FB}",
+
+        // Volume
+        "XF86AudioMute" | "Mute" => "\u{1F507}",
+        "XF86AudioLowerVolume" | "Volume_Down" => "\u{1F509}",
+        "XF86AudioRaiseVolume" | "Volume_Up" => "\u{1F50A}",
+
+        // Media
+        "XF86AudioPlay" | "Play" => "\u{25B6}",
+        "XF86AudioPause" | "PausePlayback" => "\u{23F8}",
+        "XF86AudioStop" | "Stop" => "\u{25A0}",
+        "XF86AudioNext" | "Next" => "\u{23ED}",
+        "XF86AudioPrev" | "Prev" => "\u{23EE}",
+        "XF86AudioRewind" | "Rewind" => "\u{23EA}",
+        "XF86AudioForward" | "Forward" => "\u{23E9}",
+
+        // Brightness
+        "XF86MonBrightnessUp" | "Brightness_Up" => "\u{2600}",
+        "XF86MonBrightnessDown" | "Brightness_Down" => "\u{263E}",
+
+        // Misc XF86
+        "XF86Search" => "\u{1F50D}",
+        "XF86Explorer" | "XF86LaunchA" => "\u{1F4C2}",
+        "XF86Calculator" => "\u{1F9EE}",
+        "XF86Mail" => "\u{2709}",
+        "XF86Favorites" => "\u{2605}",
+        "XF86WWW" | "XF86LaunchB" => "\u{1F310}",
+        "XF86Display" => "\u{21C3}",
+        "XF86WLAN" | "XF86Network" => "\u{1F4F6}",
+
+        // Fallback: use the key name itself
+        other => other,
+    }
+}
+
 fn substitute_vars(s: &str, vars: &HashMap<String, String>) -> String {
     let bytes = s.as_bytes();
     let mut out = String::new();
@@ -400,9 +491,42 @@ fn substitute_vars(s: &str, vars: &HashMap<String, String>) -> String {
 }
 
 fn key_chip(keys: &str) -> container::Container<'_, Message, Theme> {
-    container(text(keys).size(12).font(Font::MONOSPACE))
-        .padding([4, 10])
-        .style(chip_style)
+    let key_parts: Vec<&str> = keys.split('+').collect();
+    let mut items = row![].spacing(4);
+
+    for (i, key) in key_parts.iter().enumerate() {
+        if i > 0 {
+            items = items.push(
+                container(text("+").size(11))
+                    .padding([2, 0])
+                    .style(|_| container::Style {
+                        text_color: Some(color!(0x565D70)),
+                        ..Default::default()
+                    }),
+            );
+        }
+        let symbol = key_to_symbol(key);
+        items = items.push(
+            container(text(symbol).size(13))
+                .padding([3, 6])
+                .style(key_icon_style),
+        );
+    }
+
+    container(items).padding([4, 6]).style(chip_style)
+}
+
+fn key_icon_style(theme: &Theme) -> container::Style {
+    use iced::border;
+
+    let palette = theme.extended_palette();
+
+    container::Style {
+        background: Some(palette.primary.strong.color.into()),
+        text_color: Some(palette.primary.base.text),
+        border: border::rounded(4).width(1.0).color(palette.primary.base.color),
+        ..Default::default()
+    }
 }
 
 fn chip_style(theme: &Theme) -> container::Style {
