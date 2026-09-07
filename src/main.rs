@@ -163,7 +163,9 @@ impl App {
                 .id("filter")
                 .padding([8, 12])
                 .font(Font::MONOSPACE),
-            scrollable(items).id("list").height(Length::Fill),
+            scrollable(container(items).padding(iced::Padding::ZERO.right(14)))
+                .id("list")
+                .height(Length::Fill),
         ]
         .spacing(10)
     }
@@ -204,7 +206,7 @@ fn binding_row(binding: &Binding) -> container::Container<'_, Message, Theme> {
             .style(mode_style));
     }
 
-    container(items).padding([8, 6]).style(row_style).width(Length::Fill)
+    container(items).padding([4, 6]).style(row_style).width(Length::Fill)
 }
 
 const USAGE: &str = concat!(
@@ -632,43 +634,25 @@ fn key_chip(keys: &str) -> container::Container<'_, Message, Theme> {
         );
     }
 
-    container(items).padding([4, 6]).style(chip_style)
+    container(items).padding([4, 6])
 }
 
-fn key_icon_style(theme: &Theme) -> container::Style {
+fn key_icon_style(_theme: &Theme) -> container::Style {
     use iced::border;
 
-    let palette = theme.extended_palette();
-
     container::Style {
-        background: Some(palette.primary.strong.color.into()),
-        text_color: Some(palette.primary.base.text),
-        border: border::rounded(4).width(1.0).color(palette.primary.base.color),
+        background: Some(color!(0x353B4A).into()),
+        text_color: Some(color!(0xC7CBDD)),
+        border: border::rounded(4).width(1.0).color(color!(0x4A5266)),
         ..Default::default()
     }
 }
 
-fn chip_style(theme: &Theme) -> container::Style {
+fn row_style(_theme: &Theme) -> container::Style {
     use iced::border;
 
-    let palette = theme.extended_palette();
-
     container::Style {
-        background: Some(palette.primary.base.color.into()),
-        text_color: Some(palette.primary.base.text),
-        border: border::rounded(6),
-        ..Default::default()
-    }
-}
-
-fn row_style(theme: &Theme) -> container::Style {
-    use iced::border;
-
-    let palette = theme.extended_palette();
-
-    container::Style {
-        background: Some(palette.background.weak.color.into()),
-        border: border::rounded(8).width(1.0).color(palette.background.strong.color),
+        border: border::rounded(8).width(1.0).color(color!(0x20242E)),
         ..Default::default()
     }
 }
