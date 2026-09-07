@@ -181,22 +181,42 @@ fn binding_row(binding: &Binding) -> container::Container<'_, Message, Theme> {
     container(items).padding([8, 6]).style(row_style).width(Length::Fill)
 }
 
-fn main() -> iced::Result {
-    let args: Vec<String> = std::env::args().skip(1).collect();
+const USAGE: &str = concat!(
+    "usage: swaybind [-c <config path>] [-w <width> -h <height>] [--dump]\n",
+    "-w, --width <width>   window width (must be used with -h)\n",
+    "-h, --height <height> window height (must be used with -w)\n",
+    "without -c, reads swaymsg -t get_config"
+);
 
-    if args.iter().any(|a| a == "-h" || a == "--help") {
-        eprintln!("usage: swaybind [-c <config path>] [--dump]\nwithout -c, reads swaymsg -t get_config");
+struct Args {
+    config: Option<String>,
+    dump: bool,
+    width: Option<f32>,
+    height: Option<f32>,
+}
+
+fn main() -> iced::Result {
+    let raw_args: Vec<String> = std::env::args().skip(1).collect();
+
+    if raw_args.iter().any(|a| a == "--help") {
+        eprintln!("{USAGE}");
         return Ok(());
     }
 
-    let dump = args.iter().any(|a| a == "--dump");
+    let args = match parse_args(&raw_args) {
+        Ok(args) => args,
+        Err(err) => {
+            eprintln!("{err}\n\n{USAGE}");
+            return Ok(());
+        }
+    };
 
-    let (bindings, error) = match load_config(&args) {
+    let (bindings, error) = match load_config(args.config) {
         Ok(src) => (parse_config(&src), None),
         Err(err) => (Vec::new(), Some(err)),
     };
 
-    if dump {
+    if args.dump {
         if let Some(err) = &error {
             eprintln!("{err}");
         }
@@ -210,6 +230,20 @@ fn main() -> iced::Result {
         return Ok(());
     }
 
+    let (width, height) = args
+        .width
+        .zip(args.height)
+        .unwrap_or((760.0, 640.0));
+
+    let window_settings = iced::window::Settings {
+        size: Size::new(width, height),
+        platform_specific: iced::window::settings::PlatformSpecific {
+            application_id: "swaybind".to_string(),
+            ..Default::default()
+        },
+        ..Default::default()
+    };
+
     iced::application(
         move || App::new(bindings.clone(), error.clone()),
         App::update,
@@ -218,12 +252,15 @@ fn main() -> iced::Result {
     .theme(App::theme)
     .subscription(App::subscription)
     .title("Sway Key Bindings")
-    .window_size(Size::new(760.0, 640.0))
+    .window(window_settings)
     .run()
 }
 
-fn load_config(args: &[String]) -> Result<String, String> {
-    let mut path: Option<String> = None;
+fn parse_args(args: &[String]) -> Result<Args, String> {
+    let mut config: Option<String> = None;
+    let mut dump = false;
+    let mut width: Option<f32> = None;
+    let mut height: Option<f32> = None;
 
     let mut i = 0;
     while i < args.len() {
@@ -233,14 +270,49 @@ fn load_config(args: &[String]) -> Result<String, String> {
                 if i >= args.len() {
                     return Err("missing path after -c/--config".into());
                 }
-                path = Some(args[i].clone());
+                config = Some(args[i].clone());
             }
-            "-h" | "--help" | "--dump" => {}
+            "-w" | "--width" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err("missing value after -w/--width".into());
+                }
+                width = Some(
+                    args[i]
+                        .parse::<f32>()
+                        .map_err(|_| format!("invalid width: {}", args[i]))?,
+                );
+            }
+            "-h" | "--height" => {
+                i += 1;
+                if i >= args.len() {
+                    return Err("missing value after -h/--height".into());
+                }
+                height = Some(
+                    args[i]
+                        .parse::<f32>()
+                        .map_err(|_| format!("invalid height: {}", args[i]))?,
+                );
+            }
+            "--dump" => dump = true,
             other => return Err(format!("unknown argument: {other}")),
         }
         i += 1;
     }
 
+    if width.is_some() != height.is_some() {
+        return Err("-w/--width and -h/--height must be given together".into());
+    }
+
+    Ok(Args {
+        config,
+        dump,
+        width,
+        height,
+    })
+}
+
+fn load_config(path: Option<String>) -> Result<String, String> {
     match path {
         Some(p) => std::fs::read_to_string(&p).map_err(|e| format!("failed to read {p}: {e}")),
         None => {
