@@ -30,6 +30,8 @@ struct App {
 enum Message {
     FilterChanged(String),
     Close,
+    ScrollUp,
+    ScrollDown,
 }
 
 impl App {
@@ -47,6 +49,24 @@ impl App {
                 self.filter = value;
             }
             Message::Close => return iced::exit(),
+            Message::ScrollUp => {
+                return iced::widget::operation::scroll_by::<Message>(
+                    "list",
+                    iced::widget::scrollable::AbsoluteOffset {
+                        x: 0.0,
+                        y: -40.0,
+                    },
+                );
+            }
+            Message::ScrollDown => {
+                return iced::widget::operation::scroll_by::<Message>(
+                    "list",
+                    iced::widget::scrollable::AbsoluteOffset {
+                        x: 0.0,
+                        y: 40.0,
+                    },
+                );
+            }
         }
         Task::none()
     }
@@ -54,9 +74,14 @@ impl App {
     fn subscription(&self) -> Subscription<Message> {
         iced::event::listen_with(|event, _status, _window| match event {
             iced::event::Event::Keyboard(iced::keyboard::Event::KeyPressed {
-                key: iced::keyboard::Key::Named(iced::keyboard::key::Named::Escape),
+                key: iced::keyboard::Key::Named(name),
                 ..
-            }) => Some(Message::Close),
+            }) => match name {
+                iced::keyboard::key::Named::Escape => Some(Message::Close),
+                iced::keyboard::key::Named::ArrowUp => Some(Message::ScrollUp),
+                iced::keyboard::key::Named::ArrowDown => Some(Message::ScrollDown),
+                _ => None,
+            },
             _ => None,
         })
     }
@@ -135,9 +160,10 @@ impl App {
             header,
             text_input("Filter bindings...", &self.filter)
                 .on_input(Message::FilterChanged)
+                .id("filter")
                 .padding([8, 12])
                 .font(Font::MONOSPACE),
-            scrollable(items).height(Length::Fill),
+            scrollable(items).id("list").height(Length::Fill),
         ]
         .spacing(10)
     }
@@ -245,7 +271,12 @@ fn main() -> iced::Result {
     };
 
     iced::application(
-        move || App::new(bindings.clone(), error.clone()),
+        move || {
+            (
+                App::new(bindings.clone(), error.clone()),
+                iced::widget::operation::focus::<Message>("filter"),
+            )
+        },
         App::update,
         App::view,
     )
